@@ -84,6 +84,10 @@ class ListControlApp {
         });
 
         document.getElementById('share-session-btn').addEventListener('click', () => {
+            // Sync current progress before sharing
+            if (this.sessionId && this.isSessionHost) {
+                this.syncSession();
+            }
             this.createSession();
         });
 
@@ -384,6 +388,10 @@ class ListControlApp {
     }
 
     completeControl() {
+        // Final sync before completing
+        if (this.sessionId && this.isSessionHost) {
+            this.syncSession();
+        }
         this.showScreen('report');
     }
 
@@ -624,6 +632,7 @@ class ListControlApp {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': API_KEY,
+                    'X-Access-Key': '$2a$10$u/gAW4fLiB18cKXSJ4sBZeEbOUVp0gCX8K/XoLMGtTABW07Ec3GaG',
                     'X-Bin-Name': `setupal-session-${sessionData.id}`,
                     'X-Bin-Private': 'false'
                 },
@@ -897,7 +906,8 @@ class ListControlApp {
             if (binId) {
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
                     headers: {
-                        'X-Master-Key': API_KEY
+                        'X-Master-Key': API_KEY,
+                        'X-Access-Key': '$2a$10$u/gAW4fLiB18cKXSJ4sBZeEbOUVp0gCX8K/XoLMGtTABW07Ec3GaG'
                     }
                 });
                 if (response.ok) {
@@ -926,8 +936,8 @@ class ListControlApp {
             date: new Date().toLocaleString('tr-TR')
         });
         
-        // Sync with session if active
-        if (this.sessionId && this.isSessionHost) {
+        // Sync every 10 codes to save API calls
+        if (this.sessionId && this.isSessionHost && this.checkedCodes.size % 10 === 0) {
             this.syncSession();
         }
     }
@@ -962,7 +972,8 @@ class ListControlApp {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Master-Key': API_KEY
+                        'X-Master-Key': API_KEY,
+                        'X-Access-Key': '$2a$10$u/gAW4fLiB18cKXSJ4sBZeEbOUVp0gCX8K/XoLMGtTABW07Ec3GaG'
                     },
                     body: JSON.stringify(sessionData)
                 });
