@@ -130,33 +130,57 @@ class ListControlApp {
     }
 
     async handleFileUpload(event) {
+        console.log('File upload started');
         const file = event.target.files[0];
-        if (!file) return;
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+
+        console.log('File selected:', file.name, file.type, file.size);
 
         try {
+            console.log('Starting file parse...');
             const data = await this.parseFile(file);
+            console.log('File parsed successfully, data length:', data.length);
+            console.log('First 5 codes:', data.slice(0, 5));
+            
             this.currentData = data;
             this.checkedCodes.clear();
             
             console.log(`Loaded ${data.length} codes from file`);
+            console.log('Switching to control screen...');
             this.showScreen('control');
             
         } catch (error) {
+            console.error('File upload error:', error);
             alert('Dosya okunurken hata oluştu: ' + error.message);
         }
     }
 
     parseFile(file) {
         return new Promise((resolve, reject) => {
+            console.log('parseFile started for:', file.name);
             const reader = new FileReader();
             
             reader.onload = (e) => {
+                console.log('FileReader onload triggered');
                 try {
+                    console.log('Checking XLSX library...');
+                    if (typeof XLSX === 'undefined') {
+                        console.error('XLSX library not loaded!');
+                        reject(new Error('Excel kütüphanesi yüklenmedi'));
+                        return;
+                    }
+                    
+                    console.log('XLSX library found, parsing...');
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
+                    console.log('Workbook created:', workbook.SheetNames);
                     
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    console.log('JSON data created, rows:', jsonData.length);
                     
                     // Parse codes from first column
                     const codes = [];
@@ -170,13 +194,20 @@ class ListControlApp {
                         }
                     }
                     
+                    console.log('Codes parsed:', codes.length);
                     resolve(codes);
                 } catch (error) {
-                    reject(new Error('Dosya formatı desteklenmiyor'));
+                    console.error('Parse error:', error);
+                    reject(new Error('Dosya formatı desteklenmiyor: ' + error.message));
                 }
             };
             
-            reader.onerror = () => reject(new Error('Dosya okunamadı'));
+            reader.onerror = (error) => {
+                console.error('FileReader error:', error);
+                reject(new Error('Dosya okunamadı'));
+            };
+            
+            console.log('Starting readAsArrayBuffer...');
             reader.readAsArrayBuffer(file);
         });
     }
