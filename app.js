@@ -592,15 +592,35 @@ class ListControlApp {
     }
 
     async startQRScan() {
+        // Check if we're on HTTPS or localhost
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            document.getElementById('qr-scanner-result').innerHTML = 
+                '<div style="color: #e53e3e; text-align: center; padding: 20px; border-radius: 8px; background: #fed7d7; border: 1px solid #fc8181; margin: 10px 0;">⚠️ Kamera erişimi HTTPS gerektiriyor<br><small>Manuel kod girişi kullanın</small></div>';
+            return;
+        }
+
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            document.getElementById('qr-scanner-result').innerHTML = 
+                '<div style="color: #e53e3e; text-align: center; padding: 20px; border-radius: 8px; background: #fed7d7; border: 1px solid #fc8181; margin: 10px 0;">⚠️ Kamera API desteklenmiyor<br><small>Manuel kod girişi kullanın</small></div>';
+            return;
+        }
+
         try {
             const video = document.createElement('video');
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             
-            // Request camera access
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
-            });
+            // Request camera access with better error handling
+            const constraints = {
+                video: { 
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             
             video.srcObject = stream;
             video.play();
@@ -661,8 +681,24 @@ class ListControlApp {
             };
             
         } catch (error) {
+            console.error('Camera access error:', error);
+            let errorMessage = 'Kamera erişimi reddedildi';
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = '🚫 Kamera izni reddedildi';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = '📷 Kamera bulunamadı';
+            } else if (error.name === 'NotSupportedError') {
+                errorMessage = '⚠️ Kamera desteklenmiyor';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = '🔧 Kamera başka uygulama tarafından kullanılıyor';
+            }
+            
             document.getElementById('qr-scanner-result').innerHTML = 
-                'Kamera erişimi reddedildi veya desteklenmiyor.<br>Manuel kod girişini kullanın.';
+                `<div style="color: #e53e3e; text-align: center; padding: 20px; border-radius: 8px; background: #fed7d7; border: 1px solid #fc8181; margin: 10px 0;">
+                    ${errorMessage}<br>
+                    <small style="color: #c53030;">Manuel kod girişini kullanın</small>
+                </div>`;
         }
     }
 
