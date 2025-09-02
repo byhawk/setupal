@@ -929,12 +929,18 @@ class ListControlApp {
                 }
             });
             
+            console.log('List response status:', listResponse.status);
             if (listResponse.ok) {
-                const bins = await listResponse.json();
+                const binsData = await listResponse.json();
+                console.log('Bins response:', binsData);
+                
+                // JSONBin.io returns bins in different formats, handle both
+                const bins = Array.isArray(binsData) ? binsData : (binsData.record || []);
                 console.log('Found bins:', bins.length);
                 
                 // Search for session in bins by name pattern
                 for (const bin of bins) {
+                    console.log('Checking bin:', bin);
                     if (bin.name && bin.name.includes(`setupal-session-${sessionId}`)) {
                         console.log('Found matching bin:', bin.id);
                         
