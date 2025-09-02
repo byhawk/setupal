@@ -17,25 +17,53 @@ class ListControlApp {
     }
 
     bindEvents() {
+        console.log('Binding events...');
+        
         // File upload
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            this.handleFileUpload(e);
-        });
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            console.log('File input found, adding event listener');
+            fileInput.addEventListener('change', (e) => {
+                console.log('File input change event triggered!');
+                this.handleFileUpload(e);
+            });
+        } else {
+            console.error('file-input element not found!');
+        }
 
         // Code input - removed automatic search on input
 
         // Navigation buttons
-        document.getElementById('view-list-btn').addEventListener('click', () => {
-            this.showScreen('list');
-        });
+        const viewListBtn = document.getElementById('view-list-btn');
+        const backToControlBtn = document.getElementById('back-to-control-btn');
+        const completeBtn = document.getElementById('complete-btn');
+        
+        if (viewListBtn) {
+            viewListBtn.addEventListener('click', () => {
+                console.log('View list button clicked');
+                this.showScreen('list');
+            });
+        } else {
+            console.error('view-list-btn not found');
+        }
 
-        document.getElementById('back-to-control-btn').addEventListener('click', () => {
-            this.showScreen('control');
-        });
+        if (backToControlBtn) {
+            backToControlBtn.addEventListener('click', () => {
+                console.log('Back to control button clicked');
+                this.showScreen('control');
+            });
+        } else {
+            console.error('back-to-control-btn not found');
+        }
 
-        document.getElementById('complete-btn').addEventListener('click', () => {
-            this.completeControl();
-        });
+        if (completeBtn) {
+            completeBtn.addEventListener('click', () => {
+                console.log('Complete button clicked');
+                this.completeControl();
+            });
+        } else {
+            console.error('complete-btn not found');
+        }
 
         // Report actions
         document.getElementById('download-report-btn').addEventListener('click', () => {
@@ -922,7 +950,14 @@ class ListControlApp {
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new ListControlApp();
+    console.log('DOM loaded, initializing ListControlApp...');
+    try {
+        const app = new ListControlApp();
+        console.log('ListControlApp initialized successfully:', app);
+        window.app = app; // Debug için global erişim
+    } catch (error) {
+        console.error('ListControlApp initialization failed:', error);
+    }
 });
 
 // PWA install prompt
