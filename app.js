@@ -521,8 +521,13 @@ class ListControlApp {
         
         const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${this.sessionId}`;
         
+        // Wait for QRCode library to load
+        this.generateQRCode(qrContainer, sessionUrl, 0);
+    }
+
+    generateQRCode(container, url, attempts) {
         if (typeof QRCode !== 'undefined') {
-            QRCode.toCanvas(qrContainer, sessionUrl, {
+            QRCode.toCanvas(container, url, {
                 width: 200,
                 margin: 2,
                 color: {
@@ -531,15 +536,33 @@ class ListControlApp {
                 }
             }, (error) => {
                 if (error) {
-                    qrContainer.innerHTML = 'QR kodu oluşturulamadı';
+                    container.innerHTML = `
+                        <div style="padding: 20px; text-align: center; border: 2px dashed #e2e8f0; background: #f7fafc; border-radius: 8px;">
+                            <p style="color: #718096;">QR kodu oluşturulamadı</p>
+                            <p style="font-size: 12px; margin-top: 10px; color: #4a5568;">Manuel kod: <strong>${this.sessionId}</strong></p>
+                        </div>
+                    `;
                     console.error(error);
                 }
             });
+        } else if (attempts < 10) {
+            // Retry after 500ms, max 10 attempts (5 seconds)
+            container.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #718096;">
+                    <div style="margin-bottom: 10px;">QR kütüphanesi yükleniyor...</div>
+                    <div style="font-size: 12px;">Manuel kod: <strong style="color: #4a5568;">${this.sessionId}</strong></div>
+                </div>
+            `;
+            setTimeout(() => {
+                this.generateQRCode(container, url, attempts + 1);
+            }, 500);
         } else {
-            qrContainer.innerHTML = `
-                <div style="padding: 20px; text-align: center;">
-                    <p>QR kütüphanesi yükleniyor...</p>
-                    <p style="font-size: 12px; margin-top: 10px;">Manual kod kullanın: <strong>${this.sessionId}</strong></p>
+            // Fallback after 5 seconds
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; border: 2px dashed #e2e8f0; background: #f7fafc; border-radius: 8px;">
+                    <p style="color: #e53e3e; margin-bottom: 10px;">QR kütüphanesi yüklenemedi</p>
+                    <p style="color: #4a5568;">Manuel kod kullanın:</p>
+                    <p style="font-size: 20px; font-weight: bold; margin-top: 10px; color: #2d3748; letter-spacing: 2px;">${this.sessionId}</p>
                 </div>
             `;
         }
