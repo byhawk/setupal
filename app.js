@@ -521,19 +521,28 @@ class ListControlApp {
         
         const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${this.sessionId}`;
         
-        QRCode.toCanvas(qrContainer, sessionUrl, {
-            width: 200,
-            margin: 2,
-            color: {
-                dark: '#2d3748',
-                light: '#ffffff'
-            }
-        }, (error) => {
-            if (error) {
-                qrContainer.innerHTML = 'QR kodu oluşturulamadı';
-                console.error(error);
-            }
-        });
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(qrContainer, sessionUrl, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#2d3748',
+                    light: '#ffffff'
+                }
+            }, (error) => {
+                if (error) {
+                    qrContainer.innerHTML = 'QR kodu oluşturulamadı';
+                    console.error(error);
+                }
+            });
+        } else {
+            qrContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <p>QR kütüphanesi yükleniyor...</p>
+                    <p style="font-size: 12px; margin-top: 10px;">Manual kod kullanın: <strong>${this.sessionId}</strong></p>
+                </div>
+            `;
+        }
     }
 
     copySessionCode() {

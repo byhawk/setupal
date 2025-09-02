@@ -176,8 +176,23 @@ h2 {
 }
 
 .btn-info {
-    background: #3182ce;
+    background: #4a5568;
     color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-info:hover {
+    background: #2d3748;
 }
 
 /* Upload Area */
