@@ -144,11 +144,20 @@ class ListControlApp {
     }
 
     showScreen(screenName) {
+        console.log('showScreen called with:', screenName);
         const screens = document.querySelectorAll('.screen');
+        console.log('Found screens:', screens.length);
         screens.forEach(screen => screen.classList.remove('active'));
         
-        document.getElementById(`${screenName}-screen`).classList.add('active');
-        this.currentScreen = screenName;
+        const targetScreen = document.getElementById(`${screenName}-screen`);
+        console.log('Target screen:', targetScreen);
+        if (targetScreen) {
+            targetScreen.classList.add('active');
+            this.currentScreen = screenName;
+            console.log('Screen switched to:', screenName);
+        } else {
+            console.error('Screen not found:', `${screenName}-screen`);
+        }
 
         if (screenName === 'list') {
             this.displayDataTable();
@@ -194,6 +203,32 @@ class ListControlApp {
             reader.onload = (e) => {
                 console.log('FileReader onload triggered');
                 try {
+                    // Check if it's CSV file
+                    if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
+                        console.log('Parsing as CSV file...');
+                        const text = e.target.result;
+                        const textDecoder = new TextDecoder();
+                        const csvText = textDecoder.decode(new Uint8Array(text));
+                        console.log('CSV text:', csvText.substring(0, 200));
+                        
+                        const lines = csvText.split('\n').filter(line => line.trim());
+                        const codes = [];
+                        
+                        for (let line of lines) {
+                            const code = line.trim().toUpperCase();
+                            if (code && codes.indexOf(code) === -1) {
+                                codes.push(code);
+                            }
+                        }
+                        
+                        console.log('CSV codes parsed:', codes.length);
+                        console.log('First 5 codes:', codes.slice(0, 5));
+                        resolve(codes);
+                        return;
+                    }
+                    
+                    // For Excel files
+                    console.log('Parsing as Excel file...');
                     console.log('Checking XLSX library...');
                     if (typeof XLSX === 'undefined') {
                         console.error('XLSX library not loaded!');
@@ -222,7 +257,7 @@ class ListControlApp {
                         }
                     }
                     
-                    console.log('Codes parsed:', codes.length);
+                    console.log('Excel codes parsed:', codes.length);
                     resolve(codes);
                 } catch (error) {
                     console.error('Parse error:', error);
@@ -559,17 +594,19 @@ class ListControlApp {
                 expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
             };
 
-            // Store in cloud using JSONBin.io (free tier)
-            const success = await this.saveToCloud(sessionData);
+            // For now, just use localStorage (later can add cloud)
+            localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
             
-            if (success) {
-                // Also store locally as backup
-                localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
-                this.displaySessionShare();
-                this.showScreen('share-session');
-            } else {
-                throw new Error('Cloud storage hatası');
+            // Try cloud storage but don't fail if it doesn't work
+            try {
+                await this.saveToCloud(sessionData);
+                console.log('Session saved to cloud successfully');
+            } catch (cloudError) {
+                console.log('Cloud storage not available, using local only:', cloudError.message);
             }
+            
+            this.displaySessionShare();
+            this.showScreen('share-session');
             
         } catch (error) {
             console.error('Session creation error:', error);

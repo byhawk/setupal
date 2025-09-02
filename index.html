@@ -179,19 +179,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-    <script>
-        // Wait for all libraries to load before initializing app
-        function waitForLibraries() {
-            if (typeof XLSX !== 'undefined' && typeof QRCode !== 'undefined' && typeof jsQR !== 'undefined') {
-                console.log('All libraries loaded, initializing app...');
-                const script = document.createElement('script');
-                script.src = 'app.js';
-                document.body.appendChild(script);
-            } else {
-                setTimeout(waitForLibraries, 100);
-            }
-        }
-        waitForLibraries();
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
