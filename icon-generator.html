@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Icon Generator</title>
+</head>
+<body>
+    <h2>PWA Icon Generator</h2>
+    <p>Bu dosyayı tarayıcıda açıp, PWA ikonlarını oluşturmak için kullanabilirsiniz.</p>
+    
+    <canvas id="canvas" width="512" height="512" style="border: 1px solid #ccc;"></canvas>
+    <br><br>
+    
+    <button onclick="generateIcons()">İkonları Oluştur ve İndir</button>
+    
+    <script>
+        function generateIcons() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Temizle
+            ctx.clearRect(0, 0, 512, 512);
+            
+            // Arka plan
+            ctx.fillStyle = '#4a5568';
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Ana şekil (liste ikonu)
+            ctx.fillStyle = 'white';
+            ctx.fillRect(80, 120, 350, 40);
+            ctx.fillRect(80, 200, 350, 40);
+            ctx.fillRect(80, 280, 350, 40);
+            ctx.fillRect(80, 360, 200, 40);
+            
+            // Checkmark ikonları
+            ctx.strokeStyle = '#48bb78';
+            ctx.lineWidth = 8;
+            
+            // Checkmark 1
+            ctx.beginPath();
+            ctx.moveTo(460, 130);
+            ctx.lineTo(480, 150);
+            ctx.lineTo(520, 110);
+            ctx.stroke();
+            
+            // Checkmark 2
+            ctx.beginPath();
+            ctx.moveTo(460, 210);
+            ctx.lineTo(480, 230);
+            ctx.lineTo(520, 190);
+            ctx.stroke();
+            
+            // Checkmark 3
+            ctx.beginPath();
+            ctx.moveTo(460, 290);
+            ctx.lineTo(480, 310);
+            ctx.lineTo(520, 270);
+            ctx.stroke();
+            
+            // Farklı boyutlarda ikonları oluştur
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            
+            sizes.forEach(size => {
+                const smallCanvas = document.createElement('canvas');
+                smallCanvas.width = size;
+                smallCanvas.height = size;
+                const smallCtx = smallCanvas.getContext('2d');
+                
+                smallCtx.drawImage(canvas, 0, 0, size, size);
+                
+                // İndir
+                smallCanvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `icon-${size}x${size}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            });
+            
+            alert('Tüm ikon dosyaları indirildi! Bu dosyaları proje klasörünüze kopyalayın.');
+        }
+        
+        // Sayfa yüklendiğinde ikonu çiz
+        window.onload = function() {
+            generateIcons();
+        }
+    </script>
+</body>
+</html>
