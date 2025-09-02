@@ -900,10 +900,12 @@ class ListControlApp {
     async loadFromCloud(sessionId) {
         try {
             const API_KEY = '$2a$10$UFhz5fGpEvEfqmX.6xp9H.eSEgC0M7yW5lp1AEkHKP53xPlEccUi2';
-            // Try to get cloud bin ID from localStorage first
+            
+            // Method 1: Try to get cloud bin ID from localStorage first
             const binId = localStorage.getItem(`cloud_${sessionId}`);
             
             if (binId) {
+                console.log('Found local bin ID:', binId);
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
                     headers: {
                         'X-Master-Key': API_KEY,
@@ -912,14 +914,53 @@ class ListControlApp {
                 });
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('Loaded from cloud:', binId);
+                    console.log('Loaded from cloud via bin ID:', binId);
                     return result.record;
                 }
             }
             
-            // If no bin ID or fetch failed, try searching by session ID
-            // This is a fallback method (less reliable)
-            console.log('Cloud load failed, trying local storage');
+            // Method 2: Search all bins for matching session ID (cross-device)
+            console.log('No local bin ID, searching all bins for session:', sessionId);
+            
+            const listResponse = await fetch('https://api.jsonbin.io/v3/b', {
+                headers: {
+                    'X-Master-Key': API_KEY,
+                    'X-Access-Key': '$2a$10$u/gAW4fLiB18cKXSJ4sBZeEbOUVp0gCX8K/XoLMGtTABW07Ec3GaG'
+                }
+            });
+            
+            if (listResponse.ok) {
+                const bins = await listResponse.json();
+                console.log('Found bins:', bins.length);
+                
+                // Search for session in bins by name pattern
+                for (const bin of bins) {
+                    if (bin.name && bin.name.includes(`setupal-session-${sessionId}`)) {
+                        console.log('Found matching bin:', bin.id);
+                        
+                        const dataResponse = await fetch(`https://api.jsonbin.io/v3/b/${bin.id}/latest`, {
+                            headers: {
+                                'X-Master-Key': API_KEY,
+                                'X-Access-Key': '$2a$10$u/gAW4fLiB18cKXSJ4sBZeEbOUVp0gCX8K/XoLMGtTABW07Ec3GaG'
+                            }
+                        });
+                        
+                        if (dataResponse.ok) {
+                            const result = await dataResponse.json();
+                            const sessionData = result.record;
+                            
+                            if (sessionData && sessionData.id === sessionId) {
+                                console.log('Session found via search:', sessionId);
+                                // Store bin ID locally for future use
+                                localStorage.setItem(`cloud_${sessionId}`, bin.id);
+                                return sessionData;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            console.log('Session not found in cloud');
             return null;
             
         } catch (error) {
