@@ -597,12 +597,12 @@ class ListControlApp {
             // For now, just use localStorage (later can add cloud)
             localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
             
-            // Try cloud storage but don't fail if it doesn't work
+            // Try cloud storage with real API key
             try {
                 await this.saveToCloud(sessionData);
-                console.log('Session saved to cloud successfully');
+                console.log('Session saved to cloud successfully!');
             } catch (cloudError) {
-                console.log('Cloud storage not available, using local only:', cloudError.message);
+                console.log('Cloud storage failed, using local only:', cloudError.message);
             }
             
             this.displaySessionShare();
@@ -617,10 +617,13 @@ class ListControlApp {
     async saveToCloud(sessionData) {
         try {
             // Use JSONBin.io as free cloud storage
+            const API_KEY = '$2a$10$UFhz5fGpEvEfqmX.6xp9H.eSEgC0M7yW5lp1AEkHKP53xPlEccUi2';
+            
             const response = await fetch('https://api.jsonbin.io/v3/b', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY,
                     'X-Bin-Name': `setupal-session-${sessionData.id}`,
                     'X-Bin-Private': 'false'
                 },
@@ -887,11 +890,16 @@ class ListControlApp {
 
     async loadFromCloud(sessionId) {
         try {
+            const API_KEY = '$2a$10$UFhz5fGpEvEfqmX.6xp9H.eSEgC0M7yW5lp1AEkHKP53xPlEccUi2';
             // Try to get cloud bin ID from localStorage first
             const binId = localStorage.getItem(`cloud_${sessionId}`);
             
             if (binId) {
-                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+                    headers: {
+                        'X-Master-Key': API_KEY
+                    }
+                });
                 if (response.ok) {
                     const result = await response.json();
                     console.log('Loaded from cloud:', binId);
@@ -946,13 +954,15 @@ class ListControlApp {
 
     async updateCloud(sessionData) {
         try {
+            const API_KEY = '$2a$10$UFhz5fGpEvEfqmX.6xp9H.eSEgC0M7yW5lp1AEkHKP53xPlEccUi2';
             const binId = localStorage.getItem(`cloud_${sessionData.id}`);
             
             if (binId) {
                 const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY
                     },
                     body: JSON.stringify(sessionData)
                 });
