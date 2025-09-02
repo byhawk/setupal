@@ -3,6 +3,9 @@ class ListControlApp {
         this.currentData = [];
         this.checkedCodes = new Map();
         this.currentScreen = 'upload';
+        this.sessionId = null;
+        this.isSessionHost = false;
+        this.sessionData = null;
         
         this.init();
     }
@@ -10,6 +13,7 @@ class ListControlApp {
     init() {
         this.bindEvents();
         this.registerServiceWorker();
+        this.checkUrlForSession();
     }
 
     bindEvents() {
@@ -44,6 +48,39 @@ class ListControlApp {
 
         document.getElementById('new-check-btn').addEventListener('click', () => {
             this.startNewCheck();
+        });
+
+        // Session management
+        document.getElementById('continue-session-btn').addEventListener('click', () => {
+            this.showScreen('continue-session');
+        });
+
+        document.getElementById('share-session-btn').addEventListener('click', () => {
+            this.createSession();
+        });
+
+        document.getElementById('back-to-upload-btn').addEventListener('click', () => {
+            this.showScreen('upload');
+        });
+
+        document.getElementById('back-to-control-from-share-btn').addEventListener('click', () => {
+            this.showScreen('control');
+        });
+
+        document.getElementById('copy-code-btn').addEventListener('click', () => {
+            this.copySessionCode();
+        });
+
+        document.getElementById('scan-qr-btn').addEventListener('click', () => {
+            this.startQRScan();
+        });
+
+        document.getElementById('connect-session-btn').addEventListener('click', () => {
+            this.connectToSession();
+        });
+
+        document.getElementById('session-code-input').addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
         });
 
         // Enter key support for code input
@@ -433,8 +470,254 @@ class ListControlApp {
     startNewCheck() {
         this.currentData = [];
         this.checkedCodes.clear();
+        this.sessionId = null;
+        this.isSessionHost = false;
+        this.sessionData = null;
         document.getElementById('file-input').value = '';
         this.showScreen('upload');
+    }
+
+    // Session Management Methods
+    generateSessionId() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    async createSession() {
+        try {
+            this.sessionId = this.generateSessionId();
+            this.isSessionHost = true;
+            
+            const sessionData = {
+                id: this.sessionId,
+                data: this.currentData,
+                checkedCodes: Array.from(this.checkedCodes.entries()),
+                timestamp: Date.now(),
+                expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+            };
+
+            // Store in localStorage (will be replaced with cloud storage)
+            localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
+            
+            this.displaySessionShare();
+            this.showScreen('share-session');
+            
+        } catch (error) {
+            alert('Session oluşturulamadı: ' + error.message);
+        }
+    }
+
+    displaySessionShare() {
+        // Display session code
+        document.getElementById('session-code-display').textContent = this.sessionId;
+        
+        // Generate QR code
+        const qrContainer = document.getElementById('qr-code');
+        qrContainer.innerHTML = '';
+        
+        const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${this.sessionId}`;
+        
+        QRCode.toCanvas(qrContainer, sessionUrl, {
+            width: 200,
+            margin: 2,
+            color: {
+                dark: '#2d3748',
+                light: '#ffffff'
+            }
+        }, (error) => {
+            if (error) {
+                qrContainer.innerHTML = 'QR kodu oluşturulamadı';
+                console.error(error);
+            }
+        });
+    }
+
+    copySessionCode() {
+        const code = this.sessionId;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.getElementById('copy-code-btn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Kopyalandı!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        } else {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Kod kopyalandı: ' + code);
+        }
+    }
+
+    async startQRScan() {
+        try {
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // Request camera access
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            
+            video.srcObject = stream;
+            video.play();
+            
+            // Create scanning interface
+            const scanner = document.getElementById('qr-scanner-result');
+            scanner.innerHTML = '';
+            scanner.appendChild(video);
+            
+            const scanButton = document.createElement('button');
+            scanButton.textContent = 'Taramayı Durdur';
+            scanButton.className = 'btn-secondary';
+            scanner.appendChild(scanButton);
+            
+            video.style.width = '100%';
+            video.style.maxWidth = '300px';
+            video.style.height = 'auto';
+            
+            let scanning = true;
+            
+            const scan = () => {
+                if (!scanning) return;
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0);
+                
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                
+                if (code) {
+                    scanning = false;
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Extract session ID from URL
+                    const url = new URL(code.data);
+                    const sessionId = url.searchParams.get('session');
+                    
+                    if (sessionId) {
+                        scanner.innerHTML = 'QR kod başarıyla okundu!';
+                        this.loadSession(sessionId);
+                    } else {
+                        scanner.innerHTML = 'Geçersiz QR kod';
+                    }
+                } else {
+                    requestAnimationFrame(scan);
+                }
+            };
+            
+            scanButton.onclick = () => {
+                scanning = false;
+                stream.getTracks().forEach(track => track.stop());
+                scanner.innerHTML = 'Tarama durduruldu';
+            };
+            
+            video.onloadedmetadata = () => {
+                scan();
+            };
+            
+        } catch (error) {
+            document.getElementById('qr-scanner-result').innerHTML = 
+                'Kamera erişimi reddedildi veya desteklenmiyor.<br>Manuel kod girişini kullanın.';
+        }
+    }
+
+    connectToSession() {
+        const code = document.getElementById('session-code-input').value.trim();
+        if (!code || code.length !== 6) {
+            alert('Lütfen 6 haneli geçerli bir kod girin');
+            return;
+        }
+        
+        this.loadSession(code);
+    }
+
+    loadSession(sessionId) {
+        try {
+            const sessionData = localStorage.getItem(`session_${sessionId}`);
+            
+            if (!sessionData) {
+                alert('Session bulunamadı. Kod yanlış veya süresi dolmuş olabilir.');
+                return;
+            }
+            
+            const session = JSON.parse(sessionData);
+            
+            // Check expiration
+            if (Date.now() > session.expiresAt) {
+                localStorage.removeItem(`session_${sessionId}`);
+                alert('Session süresi dolmuş');
+                return;
+            }
+            
+            // Load session data
+            this.sessionId = sessionId;
+            this.isSessionHost = false;
+            this.currentData = session.data;
+            this.checkedCodes = new Map(session.checkedCodes);
+            
+            alert('Session başarıyla yüklendi!');
+            this.showScreen('control');
+            
+        } catch (error) {
+            alert('Session yüklenirken hata oluştu: ' + error.message);
+        }
+    }
+
+    // Override existing methods to sync with session
+    markCodeAsChecked(code) {
+        this.checkedCodes.set(code.toUpperCase(), {
+            code: code.toUpperCase(),
+            status: 'Bulundu',
+            date: new Date().toLocaleString('tr-TR')
+        });
+        
+        // Sync with session if active
+        if (this.sessionId && this.isSessionHost) {
+            this.syncSession();
+        }
+    }
+
+    syncSession() {
+        if (!this.sessionId) return;
+        
+        const sessionData = {
+            id: this.sessionId,
+            data: this.currentData,
+            checkedCodes: Array.from(this.checkedCodes.entries()),
+            timestamp: Date.now(),
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+        };
+        
+        localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
+    }
+
+    // Check URL for session parameter on load
+    checkUrlForSession() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        
+        if (sessionId) {
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Auto-load session
+            setTimeout(() => {
+                this.loadSession(sessionId);
+            }, 1000);
+        }
     }
 }
 
