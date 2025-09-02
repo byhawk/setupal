@@ -17,8 +17,10 @@
         <!-- Dosya Yükleme Ekranı -->
         <div id="upload-screen" class="screen active">
             <div class="container">
-                <h1>Liste Kontrol Uygulaması</h1>
-                <p class="version">v1.01 - Cross-device session fix</p>
+                <div class="header-section">
+                    <h1>Liste Kontrol Uygulaması</h1>
+                    <p class="app-description">Excel/CSV dosyanızı yükleyin ve kodlarınızı kontrol edin</p>
+                </div>
                 <div class="upload-area">
                     <input type="file" id="file-input" accept=".csv,.xlsx,.xls" />
                     <label for="file-input" class="upload-btn">
@@ -32,6 +34,7 @@
                         <span>veya</span>
                     </div>
                     <button id="continue-session-btn" class="btn-secondary">Kaldığın Yerden Devam Et</button>
+                    <p class="version">v1.01 - Cross-device session fix</p>
                 </div>
             </div>
         </div>
