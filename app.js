@@ -500,14 +500,50 @@ class ListControlApp {
                 expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
             };
 
-            // Store in localStorage (will be replaced with cloud storage)
-            localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
+            // Store in cloud using JSONBin.io (free tier)
+            const success = await this.saveToCloud(sessionData);
             
-            this.displaySessionShare();
-            this.showScreen('share-session');
+            if (success) {
+                // Also store locally as backup
+                localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
+                this.displaySessionShare();
+                this.showScreen('share-session');
+            } else {
+                throw new Error('Cloud storage hatası');
+            }
             
         } catch (error) {
+            console.error('Session creation error:', error);
             alert('Session oluşturulamadı: ' + error.message);
+        }
+    }
+
+    async saveToCloud(sessionData) {
+        try {
+            // Use JSONBin.io as free cloud storage
+            const response = await fetch('https://api.jsonbin.io/v3/b', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Bin-Name': `setupal-session-${sessionData.id}`,
+                    'X-Bin-Private': 'false'
+                },
+                body: JSON.stringify(sessionData)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                // Store the bin ID for retrieval
+                localStorage.setItem(`cloud_${sessionData.id}`, result.metadata.id);
+                console.log('Session saved to cloud:', result.metadata.id);
+                return true;
+            } else {
+                console.error('Cloud save failed:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('Cloud save error:', error);
+            return false;
         }
     }
 
@@ -712,21 +748,29 @@ class ListControlApp {
         this.loadSession(code);
     }
 
-    loadSession(sessionId) {
+    async loadSession(sessionId) {
         try {
-            const sessionData = localStorage.getItem(`session_${sessionId}`);
+            // First try to load from cloud
+            let session = await this.loadFromCloud(sessionId);
             
-            if (!sessionData) {
+            // If cloud fails, try local storage
+            if (!session) {
+                const localData = localStorage.getItem(`session_${sessionId}`);
+                if (localData) {
+                    session = JSON.parse(localData);
+                    console.log('Loaded from local storage');
+                }
+            }
+            
+            if (!session) {
                 alert('Session bulunamadı. Kod yanlış veya süresi dolmuş olabilir.');
                 return;
             }
             
-            const session = JSON.parse(sessionData);
-            
             // Check expiration
             if (Date.now() > session.expiresAt) {
                 localStorage.removeItem(`session_${sessionId}`);
-                alert('Session süresi dolmuş');
+                alert('Session süresi dolmuş (24 saat)');
                 return;
             }
             
@@ -736,11 +780,37 @@ class ListControlApp {
             this.currentData = session.data;
             this.checkedCodes = new Map(session.checkedCodes);
             
-            alert('Session başarıyla yüklendi!');
+            alert(`Session başarıyla yüklendi!\\n${session.data.length} kod bulundu`);
             this.showScreen('control');
             
         } catch (error) {
+            console.error('Session load error:', error);
             alert('Session yüklenirken hata oluştu: ' + error.message);
+        }
+    }
+
+    async loadFromCloud(sessionId) {
+        try {
+            // Try to get cloud bin ID from localStorage first
+            const binId = localStorage.getItem(`cloud_${sessionId}`);
+            
+            if (binId) {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Loaded from cloud:', binId);
+                    return result.record;
+                }
+            }
+            
+            // If no bin ID or fetch failed, try searching by session ID
+            // This is a fallback method (less reliable)
+            console.log('Cloud load failed, trying local storage');
+            return null;
+            
+        } catch (error) {
+            console.error('Cloud load error:', error);
+            return null;
         }
     }
 
@@ -758,7 +828,7 @@ class ListControlApp {
         }
     }
 
-    syncSession() {
+    async syncSession() {
         if (!this.sessionId) return;
         
         const sessionData = {
@@ -769,7 +839,37 @@ class ListControlApp {
             expiresAt: Date.now() + (24 * 60 * 60 * 1000)
         };
         
+        // Save to localStorage immediately
         localStorage.setItem(`session_${this.sessionId}`, JSON.stringify(sessionData));
+        
+        // Try to sync to cloud if we're the host
+        if (this.isSessionHost) {
+            await this.updateCloud(sessionData);
+        }
+    }
+
+    async updateCloud(sessionData) {
+        try {
+            const binId = localStorage.getItem(`cloud_${sessionData.id}`);
+            
+            if (binId) {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(sessionData)
+                });
+                
+                if (response.ok) {
+                    console.log('Session synced to cloud');
+                } else {
+                    console.error('Cloud sync failed:', response.status);
+                }
+            }
+        } catch (error) {
+            console.error('Cloud sync error:', error);
+        }
     }
 
     // Check URL for session parameter on load
